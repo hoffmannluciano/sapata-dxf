@@ -29,7 +29,7 @@ def gerar_sapata_dxf(largura_sapata, comprimento_sapata, altura_sapata,
     msp.add_line((x1, y1), (xp1, yp1), dxfattribs={"layer": "linhas"})
     msp.add_line((x0, y1), (xp0, yp1), dxfattribs={"layer": "linhas"})
 
-    # Vista lateral ao lado (com espaçamento horizontal)
+    # Vista lateral (ao lado)
     deslocamento = largura_sapata + 40
     msp.add_lwpolyline([
         (deslocamento, 0),
@@ -47,11 +47,14 @@ def gerar_sapata_dxf(largura_sapata, comprimento_sapata, altura_sapata,
         (x_p, altura_sapata + altura_pilar)
     ], close=True, dxfattribs={"layer": "linhas"})
 
-    # Cotas (simples, apenas para testes)
+    # Título
     msp.add_text("S1", dxfattribs={"height": 12, "layer": "textos"}).set_dxf_attrib("insert", (0, comprimento_sapata + 20))
 
-    # Salva em memória
-    buffer = io.BytesIO()
-    doc.write(buffer)
-    buffer.seek(0)
-    return buffer
+    # Salvar como texto em memória
+    dxf_str_io = io.StringIO()
+    doc.write(dxf_str_io)
+    dxf_str = dxf_str_io.getvalue()
+
+    # Transformar em bytes para o botão de download
+    dxf_bytes = dxf_str.encode("utf-8")
+    return io.BytesIO(dxf_bytes)
