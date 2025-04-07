@@ -8,7 +8,6 @@ st.title("📐 Gerador de Sapata em DXF")
 
 st.markdown("Preencha os dados abaixo para gerar o desenho DXF da sapata de fundação.")
 
-# Entradas do usuário
 with st.form("form_sapata"):
     col1, col2 = st.columns(2)
 
@@ -26,7 +25,7 @@ with st.form("form_sapata"):
 
 if gerar:
     try:
-        filepath = gerar_sapata_dxf(
+        dxf_file = gerar_sapata_dxf(
             largura_sapata,
             comprimento_sapata,
             altura_sapata,
@@ -34,9 +33,13 @@ if gerar:
             comprimento_pilar,
             altura_pilar,
         )
-        with open(filepath, "rb") as f:
-            st.success("✅ Arquivo DXF gerado com sucesso!")
-            st.download_button("📥 Baixar arquivo DXF", f, file_name="sapata.dxf")
+        st.success("✅ Arquivo DXF gerado com sucesso!")
+        st.download_button(
+            label="📥 Baixar arquivo DXF",
+            data=dxf_file,
+            file_name="sapata.dxf",
+            mime="application/dxf"
+        )
     except Exception:
         st.error("❌ Ocorreu um erro ao gerar o arquivo DXF:")
         st.code(traceback.format_exc())
