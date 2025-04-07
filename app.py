@@ -1,5 +1,6 @@
 # app.py
 import streamlit as st
+import traceback
 from gerar_sapata import gerar_sapata_dxf
 
 st.set_page_config(page_title="Gerador de Sapata DXF", layout="centered")
@@ -36,5 +37,6 @@ if gerar:
         with open(filepath, "rb") as f:
             st.success("✅ Arquivo DXF gerado com sucesso!")
             st.download_button("📥 Baixar arquivo DXF", f, file_name="sapata.dxf")
-    except Exception as e:
-        st.error(f"❌ Ocorreu um erro ao gerar o arquivo DXF:\n\n`{str(e)}`")
+    except Exception:
+        st.error("❌ Ocorreu um erro ao gerar o arquivo DXF:")
+        st.code(traceback.format_exc())
