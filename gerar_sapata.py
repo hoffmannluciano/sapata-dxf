@@ -1,125 +1,97 @@
 import ezdxf
-import os
 
-def criar_documento():
+def gerar_sapata_dxf(
+    sapata_largura,
+    sapata_comprimento,
+    sapata_altura,
+    pilar_largura,
+    pilar_comprimento,
+    pilar_altura,
+    output_path="sapata.dxf"
+):
     doc = ezdxf.new()
+    msp = doc.modelspace()
 
     # Layers
-    doc.layers.add("01", color=7)  # Branco
-    doc.layers.add("02", color=1)  # Vermelho
-    doc.layers.add("textos", color=3)  # Verde para texto
+    doc.layers.add(name="01", color=7)  # branco
+    doc.layers.add(name="02", color=1)  # vermelho
+    doc.layers.add(name="03", color=2)  # verde para textos
 
-    return doc
+    # Planta da sapata
+    p1 = (0, 0)
+    p2 = (sapata_largura, 0)
+    p3 = (sapata_largura, sapata_comprimento)
+    p4 = (0, sapata_comprimento)
 
-def adicionar_linhas_planta(msp, largura, comprimento, largura_pilar, comprimento_pilar):
-    base_x, base_y = 0, 0
-    x1, y1 = base_x, base_y
-    x2, y2 = base_x + largura, base_y + comprimento
+    planta = [p1, p2, p3, p4, p1]
+    msp.add_lwpolyline(planta, dxfattribs={"layer": "01", "closed": True})
 
-    # Contorno da sapata
-    msp.add_lwpolyline([
-        (x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)
-    ], close=True, dxfattribs={"layer": "01"})
+    # Pilar na planta
+    px1 = (sapata_largura / 2 - pilar_largura / 2, sapata_comprimento / 2 - pilar_comprimento / 2)
+    px2 = (px1[0] + pilar_largura, px1[1])
+    px3 = (px2[0], px2[1] + pilar_comprimento)
+    px4 = (px1[0], px3[1])
+    pilar_planta = [px1, px2, px3, px4, px1]
+    msp.add_lwpolyline(pilar_planta, dxfattribs={"layer": "01", "closed": True})
 
-    # Contorno do pilar
-    px1 = base_x + (largura - largura_pilar) / 2
-    py1 = base_y + (comprimento - comprimento_pilar) / 2
-    px2 = px1 + largura_pilar
-    py2 = py1 + comprimento_pilar
-    msp.add_lwpolyline([
-        (px1, py1), (px2, py1), (px2, py2), (px1, py2), (px1, py1)
-    ], close=True, dxfattribs={"layer": "01"})
+    # Linhas diagonais (da sapata ao pilar)
+    for sap, pil in zip([p1, p2, p3, p4], [px1, px2, px3, px4]):
+        msp.add_line(sap, pil, dxfattribs={"layer": "01"})
 
-    # Linhas diagonais
-    msp.add_line((x1, y1), (px1, py1), dxfattribs={"layer": "01"})
-    msp.add_line((x2, y1), (px2, py1), dxfattribs={"layer": "01"})
-    msp.add_line((x2, y2), (px2, py2), dxfattribs={"layer": "01"})
-    msp.add_line((x1, y2), (px1, py2), dxfattribs={"layer": "01"})
+    # Vista lateral - deslocamento em x
+    dx = sapata_largura + 60
 
-def adicionar_linhas_vista_lateral(msp, largura, altura_base, altura_total, deslocamento_x):
-    base_x = deslocamento_x
-    base_y = 0
+    # Sapata em vista lateral
+    v1 = (dx, 0)
+    v2 = (dx + sapata_largura, 0)
+    v3 = (dx + sapata_largura, sapata_altura)
+    v4 = (dx, sapata_altura)
+    msp.add_lwpolyline([v1, v2, v3, v4, v1], dxfattribs={"layer": "01", "closed": True})
 
-    # Contorno externo da sapata em vista
-    pontos = [
-        (base_x, base_y),
-        (base_x + largura, base_y),
-        (base_x + largura, base_y + altura_total),
-        (base_x, base_y + altura_total),
-        (base_x, base_y)
-    ]
-    msp.add_lwpolyline(pontos, close=True, dxfattribs={"layer": "01"})
+    # Pilar em vista lateral
+    pv1 = (dx + sapata_largura / 2 - pilar_largura / 2, sapata_altura)
+    pv2 = (pv1[0] + pilar_largura, sapata_altura)
+    pv3 = (pv2[0], sapata_altura + pilar_altura)
+    pv4 = (pv1[0], sapata_altura + pilar_altura)
+    msp.add_lwpolyline([pv1, pv2, pv3, pv4, pv1], dxfattribs={"layer": "01", "closed": True})
 
-    # Linha horizontal separando a base
-    msp.add_line(
-        (base_x, base_y + altura_base),
-        (base_x + largura, base_y + altura_base),
-        dxfattribs={"layer": "01"}
-    )
+    # Cotas planta
+    texto_altura = 6
 
-def adicionar_cotas_planta(msp, largura, comprimento):
-    texto_altura = 10
-    deslocamento = 20
+    def cota_horizontal(p1, p2, y):
+        msp.add_line(p1, (p1[0], y), dxfattribs={"layer": "02"})
+        msp.add_line(p2, (p2[0], y), dxfattribs={"layer": "02"})
+        msp.add_line((p1[0], y), (p2[0], y), dxfattribs={"layer": "02"})
+        meio = ((p1[0] + p2[0]) / 2, y + 2)
+        msp.add_text(
+            f"{abs(p2[0] - p1[0]):.0f} cm",
+            dxfattribs={"height": texto_altura, "layer": "02"}
+        ).set_placement(meio, align="MIDDLE_CENTER")
 
-    # Cota horizontal
-    msp.add_line((0, -deslocamento), (largura, -deslocamento), dxfattribs={"layer": "02"})
-    msp.add_line((0, 0), (0, -deslocamento), dxfattribs={"layer": "02"})
-    msp.add_line((largura, 0), (largura, -deslocamento), dxfattribs={"layer": "02"})
-    texto = msp.add_text(f"{largura} cm", dxfattribs={"height": texto_altura, "layer": "02"})
-    texto.dxf.insert = (largura / 2, -deslocamento - 5)
-    texto.dxf.align = "CENTER"
+    def cota_vertical(p1, p2, x):
+        msp.add_line(p1, (x, p1[1]), dxfattribs={"layer": "02"})
+        msp.add_line(p2, (x, p2[1]), dxfattribs={"layer": "02"})
+        msp.add_line((x, p1[1]), (x, p2[1]), dxfattribs={"layer": "02"})
+        meio = (x - 2, (p1[1] + p2[1]) / 2)
+        msp.add_text(
+            f"{abs(p2[1] - p1[1]):.0f} cm",
+            dxfattribs={"height": texto_altura, "layer": "02"}
+        ).set_placement(meio, align="MIDDLE_CENTER")
 
-    # Cota vertical
-    msp.add_line((-deslocamento, 0), (-deslocamento, comprimento), dxfattribs={"layer": "02"})
-    msp.add_line((0, 0), (-deslocamento, 0), dxfattribs={"layer": "02"})
-    msp.add_line((0, comprimento), (-deslocamento, comprimento), dxfattribs={"layer": "02"})
-    texto = msp.add_text(f"{comprimento} cm", dxfattribs={"height": texto_altura, "layer": "02"})
-    texto.dxf.insert = (-deslocamento - 5, comprimento / 2)
-    texto.dxf.align = "CENTER"
+    cota_horizontal((0, 0), (sapata_largura, 0), -10)
+    cota_vertical((0, 0), (0, sapata_comprimento), -10)
 
-def adicionar_cotas_vista_lateral(msp, altura_base, altura_total, deslocamento_x, largura):
-    texto_altura = 10
-    x = deslocamento_x + largura + 20
+    # Cotas da vista lateral (apenas alturas)
+    cota_vertical((dx, 0), (dx, sapata_altura), dx + sapata_largura + 10)
+    cota_vertical((dx, sapata_altura), (dx, sapata_altura + pilar_altura), dx + sapata_largura + 10)
 
-    # Cota altura base
-    msp.add_line((x, 0), (x, altura_base), dxfattribs={"layer": "02"})
-    msp.add_line((deslocamento_x + largura, 0), (x, 0), dxfattribs={"layer": "02"})
-    msp.add_line((deslocamento_x + largura, altura_base), (x, altura_base), dxfattribs={"layer": "02"})
-    texto = msp.add_text(f"{altura_base} cm", dxfattribs={"height": texto_altura, "layer": "02"})
-    texto.dxf.insert = (x + 5, altura_base / 2)
-    texto.dxf.align = "CENTER"
+    # Título "S1"
+    pos_x = sapata_largura / 2
+    pos_y = max(sapata_comprimento, sapata_altura + pilar_altura) + 15
+    msp.add_text(
+        "S1",
+        dxfattribs={"height": 12, "layer": "03"}
+    ).set_placement((pos_x, pos_y), align="MIDDLE_CENTER")
 
-    # Cota altura total
-    msp.add_line((x + 15, 0), (x + 15, altura_total), dxfattribs={"layer": "02"})
-    msp.add_line((deslocamento_x + largura, 0), (x + 15, 0), dxfattribs={"layer": "02"})
-    msp.add_line((deslocamento_x + largura, altura_total), (x + 15, altura_total), dxfattribs={"layer": "02"})
-    texto = msp.add_text(f"{altura_total} cm", dxfattribs={"height": texto_altura, "layer": "02"})
-    texto.dxf.insert = (x + 15 + 5, altura_total / 2)
-    texto.dxf.align = "CENTER"
-
-def adicionar_titulo(msp, largura):
-    texto = msp.add_text("S1", dxfattribs={"height": 12, "layer": "textos"})
-    texto.dxf.insert = (0, largura + 50)
-    texto.dxf.align = 'LEFT'
-
-def gerar_sapata_dxf(largura, comprimento, largura_pilar, comprimento_pilar, altura_base, altura_total):
-    try:
-        doc = criar_documento()
-        msp = doc.modelspace()
-
-        # Planta
-        adicionar_linhas_planta(msp, largura, comprimento, largura_pilar, comprimento_pilar)
-        adicionar_cotas_planta(msp, largura, comprimento)
-
-        # Vista lateral
-        deslocamento_x = largura + 60
-        adicionar_linhas_vista_lateral(msp, largura, altura_base, altura_total, deslocamento_x)
-        adicionar_cotas_vista_lateral(msp, altura_base, altura_total, deslocamento_x, largura)
-
-        adicionar_titulo(msp, largura)
-
-        caminho_arquivo = "sapata.dxf"
-        doc.saveas(caminho_arquivo)
-        return caminho_arquivo
-    except Exception as e:
-        return None
+    # Salvar
+    doc.saveas(output_path)
